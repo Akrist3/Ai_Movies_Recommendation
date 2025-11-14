@@ -1,0 +1,1 @@
+web: sk setup.sh && streamlit run app.py
