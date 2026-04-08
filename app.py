@@ -2,6 +2,20 @@ import streamlit as st
 import pickle
 import pandas as pd
 import requests
+import os
+import gdown
+
+# Download files if not present
+def download_file(file_id, output):
+    if not os.path.exists(output):
+        st.warning(f"Downloading {output}...")
+        url = f"https://drive.google.com/uc?id={file_id}"
+        gdown.download(url, output, quiet=False)
+
+# Download all required files
+download_file("1hmal9e3tbE9kBFvYH4Q5pKFksi8e61rp", "similarity.pkl")
+download_file("1p5IbvXBBtdakG9Sz1azeUT20E1SIzsyF", "movies.pkl")
+download_file("1W1PX6EGqIVxNxUnlg8I54yx2PR9GFfaC", "movies_dict.pkl")
 
 # TMDB API Key
 api_key = '0a194b7168a5cebbc31e5bec8fc2d58c'
