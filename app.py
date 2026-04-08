@@ -6,16 +6,31 @@ import os
 import gdown
 
 # Download files if not present
+# Step 1: Delete old files
+for file in ["similarity.pkl", "movies.pkl", "movies_dict.pkl"]:
+    if os.path.exists(file):
+        os.remove(file)
+# Step 2: Download fresh files
 def download_file(file_id, output):
-    if not os.path.exists(output):
-        st.warning(f"Downloading {output}...")
-        url = f"https://drive.google.com/uc?id={file_id}"
-        gdown.download(url, output, quiet=False)
+    url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    gdown.download(url, output, quiet=False, fuzzy=True)
 
-# Download all required files
-download_file("1hmal9e3tbE9kBFvYH4Q5pKFksi8e61rp", "similarity.pkl")
-download_file("1p5IbvXBBtdakG9Sz1azeUT20E1SIzsyF", "movies.pkl")
-download_file("1W1PX6EGqIVxNxUnlg8I54yx2PR9GFfaC", "movies_dict.pkl")
+download_file("1W1PX6EGqIVxNxUnlg8I54yx2PR9GFfaC", "similarity.pkl")
+download_file("1hmal9e3tbE9kBFvYH4Q5pKFksi8e61rp", "movies.pkl")
+download_file("1p5IbvXBBtdakG9Sz1azeUT20E1SIzsyF", "movies_dict.pkl")
+
+# Step 3: Load files
+with open("similarity.pkl", "rb") as f:
+    similarity = pickle.load(f)
+
+with open("movies.pkl", "rb") as f:
+    movies = pickle.load(f)
+
+with open("movies_dict.pkl", "rb") as f:
+    movies_dict = pickle.load(f)
+
+# Debug
+st.write("Similarity length:", len(similarity))
 
 # TMDB API Key
 api_key = st.secrets["TMDB_API_KEY"]
@@ -64,7 +79,7 @@ selected_movie = st.selectbox("🎞️ Select a movie you like:", movies['title'
 
 
 st.write("Movies:", movies.shape)
-st.write("Similarity:", len(similarity))
+st.write("Similarity length:", len(similarity))
 # Recommend Function
 def recommend(movie):
     movie_index = movies[movies['title'] == movie].index
