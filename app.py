@@ -63,15 +63,32 @@ st.markdown("##### Get personalized movie suggestions combining content similari
 selected_movie = st.selectbox("🎞️ Select a movie you like:", movies['title'].values)
 
 
+st.write("Movies:", movies.shape)
+st.write("Similarity:", len(similarity))
 # Recommend Function
 def recommend(movie):
-    movie_index = movies[movies['title'] == movie].index[0]
+    movie_index = movies[movies['title'] == movie].index
+
+    # Check if movie exists
+    if len(movie_index) == 0:
+        return ["Movie not found"]
+
+    movie_index = movie_index[0]
+
+    # Safety check for mismatch
+    if movie_index >= len(similarity):
+        return ["Data mismatch error"]
+
     distances = similarity[movie_index]
-    movie_list = sorted(list(enumerate(distances)), reverse=True, key=lambda x: x[1])[1:6]
+
+    movie_list = sorted(list(enumerate(distances)),
+                        reverse=True,
+                        key=lambda x: x[1])[1:6]
 
     recommended_movies = []
     for i in movie_list:
         recommended_movies.append(movies.iloc[i[0]].title)
+
     return recommended_movies
 
 # Display Recommendations
