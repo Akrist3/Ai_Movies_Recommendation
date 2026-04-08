@@ -7,9 +7,8 @@ import requests
 api_key = '0a194b7168a5cebbc31e5bec8fc2d58c'
 
 
-# -----------------------------------------------
 # Fetch movie details using title instead of ID
-# -----------------------------------------------
+
 def fetch_movie_details_by_title(title):
     try:
         search_url = f"https://api.themoviedb.org/3/search/movie?api_key={api_key}&query={title}"
@@ -35,15 +34,13 @@ def fetch_movie_details_by_title(title):
         return "https://via.placeholder.com/300x450?text=No+Poster", "Error fetching details", "N/A", "N/A"
 
 
-# -----------------------------------------------
 # Load Data
-# -----------------------------------------------
+
 movies = pickle.load(open('movies.pkl', 'rb'))
 similarity = pickle.load(open('similarity.pkl', 'rb'))
 
-# -----------------------------------------------
+
 # Streamlit App Layout
-# -----------------------------------------------
 st.set_page_config(page_title="Hybrid Movie Recommender", page_icon="🎬", layout="wide")
 
 st.title("🎬 AI-Powered Hybrid Movie Recommendation System")
@@ -52,9 +49,7 @@ st.markdown("##### Get personalized movie suggestions combining content similari
 selected_movie = st.selectbox("🎞️ Select a movie you like:", movies['title'].values)
 
 
-# -----------------------------------------------
 # Recommend Function
-# -----------------------------------------------
 def recommend(movie):
     movie_index = movies[movies['title'] == movie].index[0]
     distances = similarity[movie_index]
@@ -65,10 +60,8 @@ def recommend(movie):
         recommended_movies.append(movies.iloc[i[0]].title)
     return recommended_movies
 
-
-# -----------------------------------------------
 # Display Recommendations
-# -----------------------------------------------
+
 if st.button('🔍 Show Recommendations'):
     recommended_movie_titles = recommend(selected_movie)
 

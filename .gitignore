@@ -1,3 +1,11 @@
-.venv
+# Virtual environment
+.venv/
 
-similarity.pkl
+# Pickle / model files
+*.pkl
+
+# Compressed files
+*.xz
+
+# Cache
+__pycache__/
