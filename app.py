@@ -18,7 +18,7 @@ download_file("1p5IbvXBBtdakG9Sz1azeUT20E1SIzsyF", "movies.pkl")
 download_file("1W1PX6EGqIVxNxUnlg8I54yx2PR9GFfaC", "movies_dict.pkl")
 
 # TMDB API Key
-api_key = "0a194b7168a5cebbc31e5bec8fc2d58c"
+api_key = st.secrets["TMDB_API_KEY"]
 
 
 # Fetch movie details using title instead of ID
