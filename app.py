@@ -1,113 +1,113 @@
 import streamlit as st
 import pickle
-import pandas as pd
 import requests
 import os
 import gdown
 
-# Download files if not present
-# Step 1: Delete old files
-for file in ["similarity.pkl", "movies.pkl", "movies_dict.pkl"]:
-    if os.path.exists(file):
-        os.remove(file)
-# Step 2: Download fresh files
+# -------------------------------
+# DOWNLOAD FILES (ONLY IF NOT EXIST)
+# -------------------------------
 def download_file(file_id, output):
-    url = f"https://drive.google.com/uc?export=download&id={file_id}"
-    gdown.download(url, output, quiet=False, fuzzy=True)
+    if not os.path.exists(output):
+        url = f"https://drive.google.com/uc?export=download&id={file_id}"
+        gdown.download(url, output, quiet=False, fuzzy=True)
 
 download_file("1W1PX6EGqIVxNxUnlg8I54yx2PR9GFfaC", "similarity.pkl")
 download_file("1hmal9e3tbE9kBFvYH4Q5pKFksi8e61rp", "movies.pkl")
 download_file("1p5IbvXBBtdakG9Sz1azeUT20E1SIzsyF", "movies_dict.pkl")
 
-# Step 3: Load files
-with open("similarity.pkl", "rb") as f:
-    similarity = pickle.load(f)
+# -------------------------------
+# LOAD FILES
+# -------------------------------
+similarity = pickle.load(open("similarity.pkl", "rb"))
+movies_dict = pickle.load(open("movies_dict.pkl", "rb"))
 
-with open("movies.pkl", "rb") as f:
-    movies = pickle.load(f)
-
-with open("movies_dict.pkl", "rb") as f:
-    movies_dict = pickle.load(f)
-
-# Debug
-st.write("Similarity length:", len(similarity))
-
-# TMDB API Key
+# -------------------------------
+# API KEY
+# -------------------------------
 api_key = st.secrets["TMDB_API_KEY"]
 
-
-# Fetch movie details using title instead of ID
-
+# -------------------------------
+# FETCH MOVIE DETAILS
+# -------------------------------
 def fetch_movie_details_by_title(title):
     try:
         search_url = f"https://api.themoviedb.org/3/search/movie?api_key={api_key}&query={title}"
-        search_response = requests.get(search_url, timeout=5)
-        if search_response.status_code == 200:
-            search_data = search_response.json()
-            if search_data['results']:
-                movie = search_data['results'][0]
+        response = requests.get(search_url, timeout=5)
+
+        if response.status_code == 200:
+            data = response.json()
+
+            if data['results']:
+                movie = data['results'][0]
+
                 poster_path = movie.get('poster_path')
-                poster = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else \
+                poster = (
+                    f"https://image.tmdb.org/t/p/w500{poster_path}"
+                    if poster_path else
                     "https://via.placeholder.com/300x450?text=No+Poster"
-                rating = movie.get('vote_average', 'N/A')
+                )
+
+                overview = movie.get('overview', "No overview available.")
+                rating = movie.get('vote_average', "N/A")
                 movie_id = movie['id']
+
+                # Fetch genres
                 details_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}&language=en-US"
                 details_response = requests.get(details_url, timeout=5)
+
                 genres = "N/A"
                 if details_response.status_code == 200:
                     details_data = details_response.json()
                     genres = ", ".join([g['name'] for g in details_data.get('genres', [])])
+
                 return poster, overview, rating, genres
+
         return "https://via.placeholder.com/300x450?text=No+Poster", "No overview available.", "N/A", "N/A"
+
     except:
         return "https://via.placeholder.com/300x450?text=No+Poster", "Error fetching details", "N/A", "N/A"
 
 
-# Load Data
+# -------------------------------
+# RECOMMEND FUNCTION (DICT BASED)
+# -------------------------------
+def recommend(movie):
+    if movie not in movies_dict['title']:
+        return ["Movie not found"]
 
-movies = pickle.load(open('movies.pkl', 'rb'))
-similarity = pickle.load(open('similarity.pkl', 'rb'))
+    movie_index = movies_dict['title'].index(movie)
+
+    distances = similarity[movie_index]
+
+    movie_list = sorted(
+        list(enumerate(distances)),
+        reverse=True,
+        key=lambda x: x[1]
+    )[1:6]
+
+    recommended_movies = []
+    for i in movie_list:
+        recommended_movies.append(movies_dict['title'][i[0]])
+
+    return recommended_movies
 
 
-# Streamlit App Layout
+# -------------------------------
+# STREAMLIT UI
+# -------------------------------
 st.set_page_config(page_title="Hybrid Movie Recommender", page_icon="🎬", layout="wide")
 
 st.title("🎬 AI-Powered Hybrid Movie Recommendation System")
 st.markdown("##### Get personalized movie suggestions combining content similarity and popularity scores!")
 
-selected_movie = st.selectbox("🎞️ Select a movie you like:", movies['title'].values)
+# Dropdown
+selected_movie = st.selectbox(
+    "🎞️ Select a movie you like:",
+    movies_dict['title']
+)
 
-
-st.write("Movies:", movies.shape)
-st.write("Similarity length:", len(similarity))
-# Recommend Function
-def recommend(movie):
-    movie_index = movies[movies['title'] == movie].index
-
-    # Check if movie exists
-    if len(movie_index) == 0:
-        return ["Movie not found"]
-
-    movie_index = movie_index[0]
-
-    # Safety check for mismatch
-    if movie_index >= len(similarity):
-        return ["Data mismatch error"]
-
-    distances = similarity[movie_index]
-
-    movie_list = sorted(list(enumerate(distances)),
-                        reverse=True,
-                        key=lambda x: x[1])[1:6]
-
-    recommended_movies = []
-    for i in movie_list:
-        recommended_movies.append(movies.iloc[i[0]].title)
-
-    return recommended_movies
-
-# Display Recommendations
-
+# Button
 if st.button('🔍 Show Recommendations'):
     recommended_movie_titles = recommend(selected_movie)
 
@@ -116,9 +116,10 @@ if st.button('🔍 Show Recommendations'):
 
     for i, title in enumerate(recommended_movie_titles):
         poster, overview, rating, genres = fetch_movie_details_by_title(title)
+
         with cols[i % 5]:
             st.image(poster, use_container_width=True)
             st.markdown(f"**🎬 {title}**")
             st.markdown(f"⭐ **Rating:** {rating}")
             st.markdown(f"🎭 **Genres:** {genres}")
-            st.markdown(f"📝 {overview[:150]}...")
+            st.markdown(f"📝 {overview[:120]}...")
