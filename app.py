@@ -22,7 +22,7 @@ with st.spinner("Downloading model files…"):
     download_file("1hmal9e3tbE9kBFvYH4Q5pKFksi8e61rp", "movies.pkl")
     download_file("1p5IbvXBBtdakG9Sz1azeUT20E1SIzsyF", "movies_dict.pkl")
 
-# ── Load files (only once) ─────────────────────────────────────────────────────
+# ── Load files ─────────────────────────────────────────────────────────────────
 with open("similarity.pkl", "rb") as f:
     similarity = pickle.load(f)
 
@@ -55,7 +55,6 @@ def fetch_movie_details_by_title(title):
                     else "https://via.placeholder.com/300x450?text=No+Poster"
                 )
 
-                # FIX: 'overview' was missing — now fetched from search result
                 overview = movie.get("overview", "No overview available.")
                 rating   = movie.get("vote_average", "N/A")
                 movie_id = movie["id"]
@@ -86,7 +85,10 @@ def fetch_movie_details_by_title(title):
 
 # ── Recommend function ─────────────────────────────────────────────────────────
 def recommend(movie):
-    matches = movies[movies["title"] == movie].index
+    # Convert to DataFrame if movies is a plain dict
+    movies_df = movies if isinstance(movies, pd.DataFrame) else pd.DataFrame(movies)
+
+    matches = movies_df[movies_df["title"] == movie].index
     if len(matches) == 0:
         return ["Movie not found"]
 
@@ -96,18 +98,14 @@ def recommend(movie):
 
     distances  = similarity[movie_index]
     movie_list = sorted(enumerate(distances), key=lambda x: x[1], reverse=True)[1:6]
-    return [movies.iloc[i[0]].title for i in movie_list]
+    return [movies_df.iloc[i[0]].title for i in movie_list]
 
 # ── UI ─────────────────────────────────────────────────────────────────────────
 st.title("🎬 AI-Powered Hybrid Movie Recommendation System")
 st.markdown("##### Get personalised movie suggestions combining content similarity and popularity scores!")
 
-# FIX: safe access — movies_dict may be a plain dict or a DataFrame-like object
-titles = (
-    movies_dict["title"]
-    if isinstance(movies_dict, dict)
-    else movies_dict.get("title", movies["title"].tolist())
-)
+# movies_dict is a plain dict — wrap in list() to handle Series or plain list
+titles = list(movies_dict["title"])
 
 selected_movie = st.selectbox("🎞️ Select a movie you like:", titles)
 
