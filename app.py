@@ -3,6 +3,7 @@ import pickle
 import requests
 import os
 import gdown
+import urllib.parse
 
 # -------------------------------
 # DOWNLOAD FILES (ONLY IF NOT EXIST)
@@ -12,8 +13,8 @@ def download_file(file_id, output):
         url = f"https://drive.google.com/uc?export=download&id={file_id}"
         gdown.download(url, output, quiet=False, fuzzy=True)
 
+# Your Google Drive IDs
 download_file("1W1PX6EGqIVxNxUnlg8I54yx2PR9GFfaC", "similarity.pkl")
-download_file("1hmal9e3tbE9kBFvYH4Q5pKFksi8e61rp", "movies.pkl")
 download_file("1p5IbvXBBtdakG9Sz1azeUT20E1SIzsyF", "movies_dict.pkl")
 
 # -------------------------------
@@ -23,7 +24,7 @@ similarity = pickle.load(open("similarity.pkl", "rb"))
 movies_dict = pickle.load(open("movies_dict.pkl", "rb"))
 
 # -------------------------------
-# API KEY
+# API KEY (FROM STREAMLIT SECRETS)
 # -------------------------------
 api_key = st.secrets["TMDB_API_KEY"]
 
@@ -32,7 +33,9 @@ api_key = st.secrets["TMDB_API_KEY"]
 # -------------------------------
 def fetch_movie_details_by_title(title):
     try:
-        search_url = f"https://api.themoviedb.org/3/search/movie?api_key={api_key}&query={title}"
+        query = urllib.parse.quote(title)
+
+        search_url = f"https://api.themoviedb.org/3/search/movie?api_key={api_key}&query={query}"
         response = requests.get(search_url, timeout=5)
 
         if response.status_code == 200:
@@ -70,25 +73,23 @@ def fetch_movie_details_by_title(title):
 
 
 # -------------------------------
-# RECOMMEND FUNCTION (DICT BASED)
+# RECOMMEND FUNCTION (FIXED)
 # -------------------------------
 def recommend(movie):
-    if movie not in movies_dict['title']:
+    try:
+        movie_index = movies_dict['title'].index(movie)
+    except:
         return ["Movie not found"]
-
-    movie_index = movies_dict['title'].index(movie)
 
     distances = similarity[movie_index]
 
     movie_list = sorted(
         list(enumerate(distances)),
-        reverse=True,
-        key=lambda x: x[1]
+        key=lambda x: x[1],
+        reverse=True
     )[1:6]
 
-    recommended_movies = []
-    for i in movie_list:
-        recommended_movies.append(movies_dict['title'][i[0]])
+    recommended_movies = [movies_dict['title'][i[0]] for i in movie_list]
 
     return recommended_movies
 
@@ -120,6 +121,6 @@ if st.button('🔍 Show Recommendations'):
         with cols[i % 5]:
             st.image(poster, use_container_width=True)
             st.markdown(f"**🎬 {title}**")
-            st.markdown(f"⭐ **Rating:** {rating}")
-            st.markdown(f"🎭 **Genres:** {genres}")
+            st.markdown(f"⭐ Rating: {rating}")
+            st.markdown(f"🎭 Genres: {genres}")
             st.markdown(f"📝 {overview[:120]}...")
