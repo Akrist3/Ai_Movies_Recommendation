@@ -18,7 +18,7 @@ download_file("1p5IbvXBBtdakG9Sz1azeUT20E1SIzsyF", "movies.pkl")
 download_file("1W1PX6EGqIVxNxUnlg8I54yx2PR9GFfaC", "movies_dict.pkl")
 
 # TMDB API Key
-api_key = '0a194b7168a5cebbc31e5bec8fc2d58c'
+api_key = "0a194b7168a5cebbc31e5bec8fc2d58c"
 
 
 # Fetch movie details using title instead of ID
@@ -26,18 +26,18 @@ api_key = '0a194b7168a5cebbc31e5bec8fc2d58c'
 def fetch_movie_details_by_title(title):
     try:
         search_url = f"https://api.themoviedb.org/3/search/movie?api_key={api_key}&query={title}"
-        search_response = requests.get(search_url)
+        search_response = requests.get(search_url, timeout=5)
         if search_response.status_code == 200:
             search_data = search_response.json()
             if search_data['results']:
                 movie = search_data['results'][0]
-                poster = f"https://image.tmdb.org/t/p/w500{movie.get('poster_path')}" if movie.get(
-                    'poster_path') else "https://via.placeholder.com/300x450?text=No+Poster"
-                overview = movie.get('overview', 'No overview available.')
+                poster_path = movie.get('poster_path')
+                poster = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else \
+                    "https://via.placeholder.com/300x450?text=No+Poster"
                 rating = movie.get('vote_average', 'N/A')
                 movie_id = movie['id']
                 details_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}&language=en-US"
-                details_response = requests.get(details_url)
+                details_response = requests.get(details_url, timeout=5)
                 genres = "N/A"
                 if details_response.status_code == 200:
                     details_data = details_response.json()
