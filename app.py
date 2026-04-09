@@ -101,83 +101,223 @@ def recommend(movie):
     return [movies_df.iloc[i[0]].title for i in movie_list]
 
 
-from streamlit_lottie import st_lottie
-import requests
 
+# ── Inject Bouncy CSS ──────────────────────────────────────────────────────────
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@400;700;900&display=swap');
 
-# ── Function to load Lottie animation ──
-def load_lottieurl(url):
-    r = requests.get(url)
-    if r.status_code != 200:
-        return None
-    return r.json()
+:root {
+    --red: #FF2D55; --yellow: #FFD60A; --teal: #00F5D4;
+    --dark: #0D0D0D; --purple: #7B2FBE;
+}
 
+html, body, [data-testid="stAppViewContainer"] {
+    background: var(--dark) !important;
+    font-family: 'Nunito', sans-serif !important;
+}
 
-# ── Page Config ──
-st.set_page_config(page_title="Movie Recommender", layout="wide")
+[data-testid="stAppViewContainer"]::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+        radial-gradient(ellipse 80% 50% at 20% 10%, rgba(123,47,190,0.25) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(255,45,85,0.2)   0%, transparent 55%);
+    pointer-events: none; z-index: 0;
+}
+[data-testid="stMain"] { position: relative; z-index: 1; }
+[data-testid="stHeader"] { background: transparent !important; }
 
-# ── Load Animation ──
-lottie_movie = load_lottieurl("https://assets2.lottiefiles.com/packages/lf20_jcikwtux.json")
+/* Title */
+.main-title {
+    font-family: 'Bangers', cursive;
+    font-size: clamp(3rem, 8vw, 5.5rem);
+    letter-spacing: 4px; text-align: center; line-height: 1;
+    margin: 0.5rem 0 0.3rem;
+    background: linear-gradient(135deg, #FF2D55 0%, #FFD60A 50%, #00F5D4 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    animation: titleBounce 0.9s cubic-bezier(0.34,1.56,0.64,1) both, shimmer 4s ease-in-out 1.2s infinite;
+    filter: drop-shadow(0 0 30px rgba(255,45,85,0.4));
+}
+@keyframes titleBounce {
+    0%   { transform: scale(0.3) rotate(-5deg); opacity: 0; }
+    60%  { transform: scale(1.08) rotate(1deg); }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes shimmer {
+    0%,100% { filter: drop-shadow(0 0 20px rgba(255,45,85,0.3)); }
+    50%      { filter: drop-shadow(0 0 40px rgba(255,214,10,0.5)); }
+}
 
-# ── Header Section ──
-col1, col2 = st.columns([2, 1])
+.subtitle {
+    text-align: center; font-size: 1rem; font-weight: 600;
+    color: rgba(255,255,255,0.45); letter-spacing: 2px; text-transform: uppercase;
+    margin-bottom: 2rem;
+    animation: fadeUp 0.7s ease 0.5s both;
+}
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
 
-with col1:
-    st.title("🎬 AI Movie Recommender")
-    st.markdown("### Discover movies you’ll love 🍿")
-    st.write("Hybrid recommendation system using AI + popularity")
+/* Selectbox */
+[data-testid="stSelectbox"] > div > div {
+    background: rgba(255,255,255,0.05) !important;
+    border: 2px solid rgba(255,45,85,0.4) !important;
+    border-radius: 16px !important;
+    color: white !important;
+    font-family: 'Nunito', sans-serif !important;
+    font-weight: 700 !important;
+    transition: border-color 0.3s, box-shadow 0.3s, transform 0.2s !important;
+}
+[data-testid="stSelectbox"] > div > div:hover {
+    border-color: var(--yellow) !important;
+    box-shadow: 0 0 20px rgba(255,214,10,0.3) !important;
+    transform: scale(1.01) !important;
+}
 
-with col2:
-    st_lottie(lottie_movie, height=200)
+/* Button */
+[data-testid="stButton"] > button {
+    display: block !important; margin: 0 auto !important;
+    background: linear-gradient(135deg, #FF2D55, #7B2FBE) !important;
+    color: white !important;
+    font-family: 'Bangers', cursive !important;
+    font-size: 1.5rem !important; letter-spacing: 3px !important;
+    padding: 0.7rem 3rem !important; border: none !important;
+    border-radius: 50px !important; cursor: pointer !important;
+    box-shadow: 0 8px 30px rgba(255,45,85,0.4) !important;
+    transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s !important;
+    animation: fadeUp 0.7s ease 0.9s both, pulse 2.5s ease-in-out 2s infinite;
+}
+@keyframes pulse {
+    0%,100% { box-shadow: 0 8px 30px rgba(255,45,85,0.4), 0 0 0 0 rgba(255,45,85,0.3); }
+    50%      { box-shadow: 0 8px 40px rgba(255,45,85,0.6), 0 0 0 12px rgba(255,45,85,0); }
+}
+[data-testid="stButton"] > button:hover {
+    transform: scale(1.08) translateY(-3px) !important;
+    box-shadow: 0 16px 40px rgba(255,45,85,0.6) !important;
+}
+[data-testid="stButton"] > button:active { transform: scale(0.95) !important; }
 
-st.markdown("---")
+/* Section header */
+.section-header {
+    font-family: 'Bangers', cursive; font-size: 2.4rem;
+    letter-spacing: 3px; color: var(--yellow); text-align: center;
+    margin: 2rem 0 1.2rem;
+    text-shadow: 3px 3px 0 rgba(255,45,85,0.4);
+    animation: bounceIn 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+@keyframes bounceIn {
+    0%   { transform: scale(0.5); opacity: 0; }
+    70%  { transform: scale(1.06); }
+    100% { transform: scale(1);   opacity: 1; }
+}
 
-# ── Movie Selection ──
-titles = list(movies_dict["title"])
+/* Cards */
+.movie-card {
+    background: linear-gradient(145deg, rgba(26,26,46,0.95), rgba(13,13,13,0.9));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px; overflow: hidden;
+    transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.35s, border-color 0.3s;
+}
+.movie-card:hover {
+    transform: translateY(-12px) scale(1.03) rotate(-0.5deg);
+    box-shadow: 0 25px 50px rgba(255,45,85,0.25), 0 0 0 1px rgba(255,45,85,0.3);
+    border-color: rgba(255,45,85,0.4);
+}
+.card-poster { width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block; border-radius: 16px 16px 0 0; }
+.card-body   { padding: 12px 14px 16px; }
+.card-title  {
+    font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 0.95rem;
+    color: #fff; margin: 0 0 8px; line-height: 1.3;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.card-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 0.75rem; font-weight: 700; padding: 3px 9px;
+    border-radius: 20px; margin: 2px 2px 2px 0; letter-spacing: 0.4px;
+}
+.badge-rating { background: rgba(255,214,10,0.15); color: #FFD60A; border: 1px solid rgba(255,214,10,0.3); }
+.badge-genre  { background: rgba(0,245,212,0.1);   color: #00F5D4; border: 1px solid rgba(0,245,212,0.25); font-size: 0.7rem; }
+.card-overview {
+    font-size: 0.78rem; color: rgba(255,255,255,0.45); line-height: 1.5; margin-top: 8px;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
 
-selected_movie = st.selectbox(
-    "🎞️ Choose a movie:",
-    titles,
-    help="Pick a movie to get similar recommendations"
-)
+/* Staggered card pop-in */
+.card-wrap-0 { animation: cardPop 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.1s both; }
+.card-wrap-1 { animation: cardPop 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.2s both; }
+.card-wrap-2 { animation: cardPop 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.3s both; }
+.card-wrap-3 { animation: cardPop 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.4s both; }
+.card-wrap-4 { animation: cardPop 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.5s both; }
+@keyframes cardPop {
+    0%   { transform: scale(0.6) translateY(40px); opacity: 0; }
+    70%  { transform: scale(1.04) translateY(-4px); }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
+}
 
-# ── Button with Animation Style ──
-if st.button("✨ Recommend Movies"):
+hr {
+    border: none !important; height: 2px !important;
+    background: linear-gradient(90deg, transparent, rgba(255,45,85,0.4), rgba(255,214,10,0.4), transparent) !important;
+    margin: 1.5rem 0 !important;
+}
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: #FF2D55; border-radius: 3px; }
+</style>
+""", unsafe_allow_html=True)
 
-    with st.spinner("Finding best movies for you... 🎯"):
+# ── UI ─────────────────────────────────────────────────────────────────────────
+st.markdown('<h1 class="main-title">🎬 CineMatch AI</h1>', unsafe_allow_html=True)
+st.markdown('<p class="subtitle">✦ Discover your next favourite film ✦</p>', unsafe_allow_html=True)
+st.markdown("<hr>", unsafe_allow_html=True)
+
+_, col_mid, _ = st.columns([1, 3, 1])
+with col_mid:
+    titles         = list(movies_dict["title"])
+    selected_movie = st.selectbox("🎞️ Pick a movie you love", titles)
+    st.markdown("<br>", unsafe_allow_html=True)
+    go = st.button("🔍  FIND MY MOVIES")
+
+st.markdown("<hr>", unsafe_allow_html=True)
+
+if go:
+    with st.spinner("🍿  Finding perfect matches..."):
         recommended_titles = recommend(selected_movie)
 
-    st.success("Here are your recommendations! 🍿")
+    st.markdown('<div class="section-header">🎯 Your Picks Are Ready!</div>', unsafe_allow_html=True)
 
-    # ── Display Cards ──
     cols = st.columns(5)
-
     for i, title in enumerate(recommended_titles):
         poster, overview, rating, genres = fetch_movie_details_by_title(title)
 
+        genre_badges = "".join(
+            f'<span class="card-badge badge-genre">{g.strip()}</span>'
+            for g in genres.split(",")[:2]
+        ) if genres != "N/A" else ""
+
+        card_html = f"""
+        <div class="card-wrap-{i}">
+          <div class="movie-card">
+            <img class="card-poster" src="{poster}" alt="{title}"
+                 onerror="this.src='https://via.placeholder.com/300x450?text=No+Poster'"/>
+            <div class="card-body">
+              <div class="card-title">{title}</div>
+              <span class="card-badge badge-rating">⭐ {rating}</span>
+              {genre_badges}
+              <div class="card-overview">{overview}</div>
+            </div>
+          </div>
+        </div>
+        """
         with cols[i % 5]:
-            st.markdown(
-                f"""
-                <div style="
-                    background-color:#1e1e1e;
-                    padding:10px;
-                    border-radius:15px;
-                    text-align:center;
-                    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-                    transition: 0.3s;
-                ">
-                """,
-                unsafe_allow_html=True
-            )
+            st.markdown(card_html, unsafe_allow_html=True)
 
-            st.image(poster, use_container_width=True)
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown(
+        '<p style="text-align:center;color:rgba(255,255,255,0.2);font-size:0.8rem;letter-spacing:2px;">POWERED BY TMDB · BUILT WITH STREAMLIT</p>',
+        unsafe_allow_html=True
+    )
 
-            st.markdown(f"**🎬 {title}**")
-            st.markdown(f"⭐ {rating}")
-            st.markdown(f"🎭 {genres}")
-            st.caption(f"{overview[:120]}...")
-
-            st.markdown("</div>", unsafe_allow_html=True)
 
 # ── Footer ──
 st.markdown("---")
