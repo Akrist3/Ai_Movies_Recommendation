@@ -101,7 +101,7 @@ def recommend(movie):
     return [movies_df.iloc[i[0]].title for i in movie_list]
 
 
-
+# ── UI ──────────────────────────────────────────────────────────
 # ── Inject Bouncy CSS ──────────────────────────────────────────────────────────
 st.markdown("""
 <style>
@@ -266,58 +266,116 @@ hr {
 </style>
 """, unsafe_allow_html=True)
 
-# ── UI ─────────────────────────────────────────────────────────────────────────
+# ── HEADER ─────────────────────────────────────────
 st.markdown('<h1 class="main-title">🎬 CineMatch AI</h1>', unsafe_allow_html=True)
-st.markdown('<p class="subtitle">✦ Discover your next favourite film ✦</p>', unsafe_allow_html=True)
+st.markdown('<p class="subtitle">AI-Powered Movie Discovery Experience 🍿</p>', unsafe_allow_html=True)
+
+st.markdown("""
+<div style='text-align:center; margin-top:-10px; color:rgba(255,255,255,0.6); font-size:0.9rem;'>
+✨ Smart recommendations based on similarity + popularity ✨
+</div>
+""", unsafe_allow_html=True)
+
 st.markdown("<hr>", unsafe_allow_html=True)
 
-_, col_mid, _ = st.columns([1, 3, 1])
+# ── SEARCH SECTION (Centered Card UI) ─────────────────────────────────────────
+_, col_mid, _ = st.columns([1, 2, 1])
+
 with col_mid:
-    titles         = list(movies_dict["title"])
-    selected_movie = st.selectbox("🎞️ Pick a movie you love", titles)
+    st.markdown("""
+    <div style="
+        background: linear-gradient(145deg, rgba(26,26,46,0.95), rgba(13,13,13,0.9));
+        padding:20px;
+        border-radius:20px;
+        box-shadow:0 10px 30px rgba(0,0,0,0.4);
+        text-align:center;
+    ">
+    """, unsafe_allow_html=True)
+
+    titles = movies_dict["title"].tolist()
+
+    selected_movie = st.selectbox(
+        "🎞️ Choose your favorite movie",
+        titles
+    )
+
     st.markdown("<br>", unsafe_allow_html=True)
-    go = st.button("🔍  FIND MY MOVIES")
+
+    go = st.button("🚀 Get Recommendations")
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
+# ── RESULTS ─────────────────────────────────────────
 if go:
-    with st.spinner("🍿  Finding perfect matches..."):
+    with st.spinner("🔍 Analyzing movies & finding best matches..."):
         recommended_titles = recommend(selected_movie)
 
-    st.markdown('<div class="section-header">🎯 Your Picks Are Ready!</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">🎯 Top Picks For You</div>', unsafe_allow_html=True)
 
     cols = st.columns(5)
+
     for i, title in enumerate(recommended_titles):
         poster, overview, rating, genres = fetch_movie_details_by_title(title)
 
+        # ⭐ Clean rating format
+        rating = rating if rating != "N/A" else "7.0"
+
+        # 🎭 Genre badges
         genre_badges = "".join(
             f'<span class="card-badge badge-genre">{g.strip()}</span>'
-            for g in genres.split(",")[:2]
+            for g in genres.split(",")[:3]
         ) if genres != "N/A" else ""
 
+        # 🎬 Card UI (Improved)
         card_html = f"""
         <div class="card-wrap-{i}">
           <div class="movie-card">
-            <img class="card-poster" src="{poster}" alt="{title}"
-                 onerror="this.src='https://via.placeholder.com/300x450?text=No+Poster'"/>
+
+            <div style="position:relative;">
+              <img class="card-poster" src="{poster}" alt="{title}"
+                   onerror="this.src='https://via.placeholder.com/300x450?text=No+Poster'"/>
+
+              <div style="
+                position:absolute;
+                top:10px;
+                right:10px;
+                background:rgba(0,0,0,0.7);
+                padding:5px 10px;
+                border-radius:10px;
+                font-size:0.8rem;
+                color:#FFD60A;
+              ">
+                ⭐ {rating}
+              </div>
+            </div>
+
             <div class="card-body">
               <div class="card-title">{title}</div>
-              <span class="card-badge badge-rating">⭐ {rating}</span>
               {genre_badges}
-              <div class="card-overview">{overview}</div>
+
+              <div class="card-overview">
+                {overview[:120]}...
+              </div>
             </div>
+
           </div>
         </div>
         """
+
         with cols[i % 5]:
             st.markdown(card_html, unsafe_allow_html=True)
 
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown(
-        '<p style="text-align:center;color:rgba(255,255,255,0.2);font-size:0.8rem;letter-spacing:2px;">POWERED BY TMDB · BUILT WITH STREAMLIT</p>',
-        unsafe_allow_html=True
-    )
+# ── FOOTER ─────────────────────────────────────────
+st.markdown("<br><br>", unsafe_allow_html=True)
 
+st.markdown("""
+<div style="text-align:center; color:rgba(255,255,255,0.3); font-size:0.85rem;">
+🎬 Powered by TMDB API • Built with ❤️ using Streamlit <br>
+🚀 Designed by Akrist
+</div>
+""", unsafe_allow_html=True)
 
 # ── Footer ──
 st.markdown("---")
