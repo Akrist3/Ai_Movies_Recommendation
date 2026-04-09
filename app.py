@@ -100,54 +100,85 @@ def recommend(movie):
     movie_list = sorted(enumerate(distances), key=lambda x: x[1], reverse=True)[1:6]
     return [movies_df.iloc[i[0]].title for i in movie_list]
 
-# ── UI ─────────────────────────────────────────────────────────────────────────
-st.markdown('<h1 class="main-title">🎬 CineMatch AI</h1>', unsafe_allow_html=True)
-st.markdown('<p class="subtitle">✦ Discover your next favourite film ✦</p>', unsafe_allow_html=True)
-st.markdown("<hr>", unsafe_allow_html=True)
 
-_, col_mid, _ = st.columns([1, 3, 1])
-with col_mid:
-    titles         = list(movies_dict["title"])
-    selected_movie = st.selectbox("🎞️ Pick a movie you love", titles)
-    st.markdown("<br>", unsafe_allow_html=True)
-    go = st.button("🔍  FIND MY MOVIES")
+from streamlit_lottie import st_lottie
+import requests
 
-st.markdown("<hr>", unsafe_allow_html=True)
 
-if go:
-    with st.spinner("🍿  Finding perfect matches..."):
+# ── Function to load Lottie animation ──
+def load_lottieurl(url):
+    r = requests.get(url)
+    if r.status_code != 200:
+        return None
+    return r.json()
+
+
+# ── Page Config ──
+st.set_page_config(page_title="Movie Recommender", layout="wide")
+
+# ── Load Animation ──
+lottie_movie = load_lottieurl("https://assets2.lottiefiles.com/packages/lf20_jcikwtux.json")
+
+# ── Header Section ──
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    st.title("🎬 AI Movie Recommender")
+    st.markdown("### Discover movies you’ll love 🍿")
+    st.write("Hybrid recommendation system using AI + popularity")
+
+with col2:
+    st_lottie(lottie_movie, height=200)
+
+st.markdown("---")
+
+# ── Movie Selection ──
+titles = list(movies_dict["title"])
+
+selected_movie = st.selectbox(
+    "🎞️ Choose a movie:",
+    titles,
+    help="Pick a movie to get similar recommendations"
+)
+
+# ── Button with Animation Style ──
+if st.button("✨ Recommend Movies"):
+
+    with st.spinner("Finding best movies for you... 🎯"):
         recommended_titles = recommend(selected_movie)
 
-    st.markdown('<div class="section-header">🎯 Your Picks Are Ready!</div>', unsafe_allow_html=True)
+    st.success("Here are your recommendations! 🍿")
 
+    # ── Display Cards ──
     cols = st.columns(5)
+
     for i, title in enumerate(recommended_titles):
         poster, overview, rating, genres = fetch_movie_details_by_title(title)
 
-        genre_badges = "".join(
-            f'<span class="card-badge badge-genre">{g.strip()}</span>'
-            for g in genres.split(",")[:2]
-        ) if genres != "N/A" else ""
-
-        card_html = f"""
-        <div class="card-wrap-{i}">
-          <div class="movie-card">
-            <img class="card-poster" src="{poster}" alt="{title}"
-                 onerror="this.src='https://via.placeholder.com/300x450?text=No+Poster'"/>
-            <div class="card-body">
-              <div class="card-title">{title}</div>
-              <span class="card-badge badge-rating">⭐ {rating}</span>
-              {genre_badges}
-              <div class="card-overview">{overview}</div>
-            </div>
-          </div>
-        </div>
-        """
         with cols[i % 5]:
-            st.markdown(card_html, unsafe_allow_html=True)
+            st.markdown(
+                f"""
+                <div style="
+                    background-color:#1e1e1e;
+                    padding:10px;
+                    border-radius:15px;
+                    text-align:center;
+                    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+                    transition: 0.3s;
+                ">
+                """,
+                unsafe_allow_html=True
+            )
 
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown(
-        '<p style="text-align:center;color:rgba(255,255,255,0.2);font-size:0.8rem;letter-spacing:2px;">POWERED BY TMDB · BUILT WITH STREAMLIT</p>',
-        unsafe_allow_html=True
-    )
+            st.image(poster, use_container_width=True)
+
+            st.markdown(f"**🎬 {title}**")
+            st.markdown(f"⭐ {rating}")
+            st.markdown(f"🎭 {genres}")
+            st.caption(f"{overview[:120]}...")
+
+            st.markdown("</div>", unsafe_allow_html=True)
+
+# ── Footer ──
+st.markdown("---")
+st.markdown("Made with ❤️ using Streamlit")
