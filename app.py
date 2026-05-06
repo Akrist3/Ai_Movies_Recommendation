@@ -11,7 +11,7 @@ import gdown
 st.set_page_config(page_title="CineMatch AI", page_icon="🎬", layout="wide")
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  GLOBAL CSS (page bg, fonts, button, selectbox — NOT card styles)
+#  GLOBAL CSS
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
@@ -46,7 +46,6 @@ section.main { background: #080810 !important; }
 [data-testid="stMain"] { position: relative; z-index: 2; }
 .block-container { padding: 2rem 3rem 4rem !important; max-width: 1400px !important; }
 
-/* Selectbox */
 [data-testid="stSelectbox"] label {
     font-family: 'DM Sans', sans-serif !important; font-size: 0.8rem !important;
     font-weight: 700 !important; letter-spacing: 3px !important;
@@ -60,7 +59,6 @@ section.main { background: #080810 !important; }
     font-size: 1.05rem !important; font-weight: 600 !important;
 }
 
-/* Button */
 [data-testid="stButton"] { text-align: center; }
 [data-testid="stButton"] > button {
     display: inline-block !important;
@@ -85,25 +83,35 @@ section.main { background: #080810 !important; }
 """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOWNLOAD & LOAD
+#  DOWNLOAD — only if file doesn't already exist (fixes PermissionError)
 # ══════════════════════════════════════════════════════════════════════════════
-for file in ["similarity.pkl", "movies.pkl", "movies_dict.pkl"]:
-    if os.path.exists(file):
-        os.remove(file)
+FILES = {
+    "similarity.pkl": "1W1PX6EGqIVxNxUnlg8I54yx2PR9GFfaC",
+    "movies.pkl":     "1hmal9e3tbE9kBFvYH4Q5pKFksi8e61rp",
+    "movies_dict.pkl":"1p5IbvXBBtdakG9Sz1azeUT20E1SIzsyF",
+}
 
 def download_file(file_id, output):
     gdown.download(f"https://drive.google.com/uc?export=download&id={file_id}",
                    output, quiet=False, fuzzy=True)
 
-with st.spinner("Loading cinema engine…"):
-    download_file("1W1PX6EGqIVxNxUnlg8I54yx2PR9GFfaC", "similarity.pkl")
-    download_file("1hmal9e3tbE9kBFvYH4Q5pKFksi8e61rp",  "movies.pkl")
-    download_file("1p5IbvXBBtdakG9Sz1azeUT20E1SIzsyF",  "movies_dict.pkl")
+missing = [f for f in FILES if not os.path.exists(f)]
+if missing:
+    with st.spinner("Loading cinema engine…"):
+        for filename in missing:
+            download_file(FILES[filename], filename)
 
-with open("similarity.pkl", "rb") as f: similarity  = pickle.load(f)
-with open("movies.pkl",     "rb") as f: movies      = pickle.load(f)
-with open("movies_dict.pkl","rb") as f: movies_dict = pickle.load(f)
+# ══════════════════════════════════════════════════════════════════════════════
+#  LOAD — cached so pickle files are only read once per session
+# ══════════════════════════════════════════════════════════════════════════════
+@st.cache_resource
+def load_data():
+    with open("similarity.pkl", "rb") as f: similarity  = pickle.load(f)
+    with open("movies.pkl",     "rb") as f: movies      = pickle.load(f)
+    with open("movies_dict.pkl","rb") as f: movies_dict = pickle.load(f)
+    return similarity, movies, movies_dict
 
+similarity, movies, movies_dict = load_data()
 api_key = st.secrets["TMDB_API_KEY"]
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -119,17 +127,21 @@ def fetch_movie_details_by_title(title):
             if results:
                 m      = results[0]
                 poster = (f"https://image.tmdb.org/t/p/w500{m['poster_path']}"
-                          if m.get("poster_path") else "https://via.placeholder.com/300x450/0f0f1e/666?text=No+Poster")
+                          if m.get("poster_path")
+                          else "https://via.placeholder.com/300x450/0f0f1e/666?text=No+Poster")
                 overview = m.get("overview", "No overview available.")
                 rating   = round(float(m.get("vote_average", 0)), 1)
-                dr = requests.get(f"https://api.themoviedb.org/3/movie/{m['id']}?api_key={api_key}", timeout=5)
+                dr = requests.get(
+                    f"https://api.themoviedb.org/3/movie/{m['id']}?api_key={api_key}",
+                    timeout=5)
                 genres = []
                 if dr.status_code == 200:
                     genres = [g["name"] for g in dr.json().get("genres", [])[:3]]
                 return poster, overview, rating, genres
     except Exception:
         pass
-    return ("https://via.placeholder.com/300x450/0f0f1e/666?text=No+Poster", "Error fetching details.", 0.0, [])
+    return ("https://via.placeholder.com/300x450/0f0f1e/666?text=No+Poster",
+            "Error fetching details.", 0.0, [])
 
 def recommend(movie):
     df      = movies if isinstance(movies, pd.DataFrame) else pd.DataFrame(movies)
@@ -141,7 +153,7 @@ def recommend(movie):
     return [df.iloc[i[0]].title for i in top5]
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  HERO — inline styles only
+#  HERO
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown("""
 <div style="text-align:center;padding:3rem 1rem 1rem;">
@@ -162,7 +174,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Divider
 st.markdown("""
 <div style="height:1px;margin:1.5rem 0;
   background:linear-gradient(90deg,transparent,rgba(244,114,182,0.5) 25%,
@@ -170,7 +181,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  SELECTBOX + BUTTON  (Streamlit native widgets)
+#  SELECTBOX + BUTTON
 # ══════════════════════════════════════════════════════════════════════════════
 _, mid_col, _ = st.columns([1, 2, 1])
 with mid_col:
@@ -186,7 +197,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  RESULTS — every card uses 100% inline styles (no class names on cards)
+#  RESULTS — 100% inline styles on cards
 # ══════════════════════════════════════════════════════════════════════════════
 if go:
     with st.spinner("Finding your perfect matches…"):
@@ -195,14 +206,12 @@ if go:
     if not rec_titles:
         st.error("Movie not found. Please try another title.")
     else:
-        # Fetch details
         movies_data = []
         for title in rec_titles:
             poster, overview, rating, genres = fetch_movie_details_by_title(title)
             movies_data.append({"title": title, "poster": poster,
                                  "overview": overview, "rating": rating, "genres": genres})
 
-        # Results heading
         st.markdown("""
         <div style="font-family:'Bebas Neue',cursive;font-size:2.8rem;letter-spacing:5px;
                     text-align:center;margin:2rem 0 1.5rem;
@@ -212,7 +221,6 @@ if go:
         </div>
         """, unsafe_allow_html=True)
 
-        # Render each card in its own st.column (Streamlit-native columns)
         cols = st.columns(5)
         for i, m in enumerate(movies_data):
             overview_short = m["overview"][:150] + "…" if len(m["overview"]) > 150 else m["overview"]
@@ -220,8 +228,8 @@ if go:
 
             genre_pills = "".join(
                 f'<span style="display:inline-block;font-family:DM Sans,sans-serif;'
-                f'font-size:0.65rem;font-weight:700;letter-spacing:0.5px;padding:2px 8px;'
-                f'border-radius:20px;background:rgba(99,102,241,0.18);color:#a5b4fc;'
+                f'font-size:0.65rem;font-weight:700;padding:2px 8px;border-radius:20px;'
+                f'background:rgba(99,102,241,0.18);color:#a5b4fc;'
                 f'border:1px solid rgba(99,102,241,0.3);margin:2px 2px 2px 0;">{g}</span>'
                 for g in m["genres"]
             )
@@ -230,40 +238,27 @@ if go:
             <div style="border-radius:16px;overflow:hidden;
                         background:rgba(15,15,30,0.85);
                         border:1px solid rgba(255,255,255,0.08);
-                        font-family:'DM Sans',sans-serif;
-                        transition:transform 0.3s ease,box-shadow 0.3s ease;
-                        margin-bottom:1rem;">
-              <!-- Poster -->
+                        font-family:'DM Sans',sans-serif;margin-bottom:1rem;">
               <div style="position:relative;width:100%;padding-top:150%;overflow:hidden;">
-                <img src="{m['poster']}"
-                     alt="{m['title']}"
+                <img src="{m['poster']}" alt="{m['title']}"
                      onerror="this.src='https://via.placeholder.com/300x450/0f0f1e/666?text=No+Poster'"
-                     style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block;"/>
-                <!-- Rating pill -->
+                     style="position:absolute;top:0;left:0;width:100%;height:100%;
+                            object-fit:cover;display:block;"/>
                 <div style="position:absolute;top:10px;right:10px;
                             background:rgba(0,0,0,0.78);border-radius:20px;
                             padding:4px 10px;border:1px solid rgba(255,214,10,0.45);
-                            font-size:0.75rem;font-weight:700;color:#FFD60A;
-                            font-family:'DM Sans',sans-serif;">
+                            font-size:0.75rem;font-weight:700;color:#FFD60A;">
                   {rating_txt}
                 </div>
-                <!-- Bottom gradient -->
                 <div style="position:absolute;bottom:0;left:0;right:0;height:60%;
-                            background:linear-gradient(to top,rgba(8,8,16,0.9) 0%,transparent 100%);
+                            background:linear-gradient(to top,rgba(8,8,16,0.9),transparent);
                             pointer-events:none;"></div>
               </div>
-              <!-- Info -->
               <div style="padding:12px 14px 16px;">
                 <div style="font-weight:700;font-size:0.93rem;color:#fff;
-                            line-height:1.35;margin-bottom:7px;
-                            display:-webkit-box;-webkit-line-clamp:2;
-                            -webkit-box-orient:vertical;overflow:hidden;">
-                  {m['title']}
-                </div>
+                            line-height:1.35;margin-bottom:7px;">{m['title']}</div>
                 <div style="margin-bottom:7px;">{genre_pills}</div>
-                <div style="font-size:0.73rem;color:rgba(255,255,255,0.38);
-                            line-height:1.55;display:-webkit-box;
-                            -webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">
+                <div style="font-size:0.73rem;color:rgba(255,255,255,0.38);line-height:1.55;">
                   {overview_short}
                 </div>
               </div>
@@ -272,7 +267,6 @@ if go:
             with cols[i]:
                 st.markdown(card, unsafe_allow_html=True)
 
-        # Footer
         st.markdown("""
         <div style="text-align:center;padding:2rem 0 1rem;font-family:'DM Sans',sans-serif;
                     font-size:0.72rem;letter-spacing:3px;text-transform:uppercase;
