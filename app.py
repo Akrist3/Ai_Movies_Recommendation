@@ -85,21 +85,47 @@ section.main { background: #080810 !important; }
 # ══════════════════════════════════════════════════════════════════════════════
 #  DOWNLOAD — only if file doesn't already exist (fixes PermissionError)
 # ══════════════════════════════════════════════════════════════════════════════
+
 FILES = {
     "similarity.pkl": "1W1PX6EGqIVxNxUnlg8I54yx2PR9GFfaC",
-    "movies.pkl":     "1hmal9e3tbE9kBFvYH4Q5pKFksi8e61rp",
-    "movies_dict.pkl":"1p5IbvXBBtdakG9Sz1azeUT20E1SIzsyF",
+    "movies.pkl": "1hmal9e3tbE9kBFvYH4Q5pKFksi8e61rp",
+    "movies_dict.pkl": "1p5IbvXBBtdakG9Sz1azeUT20E1SIzsyF",
 }
 
+
 def download_file(file_id, output):
-    gdown.download(f"https://drive.google.com/uc?export=download&id={file_id}",
-                   output, quiet=False, fuzzy=True)
+    """Robust Google Drive download with fallback."""
+    if os.path.exists(output):
+        return
+
+    try:
+        # ✅ Use id= parameter instead of full URL - much more reliable
+        gdown.download(id=file_id, output=output, quiet=False, fuzzy=True)
+    except Exception as e:
+        st.warning(f"gdown failed for {output}: {e}")
+        # Fallback: try direct download via requests
+        try:
+            url = f"https://drive.google.com/uc?export=download&id={file_id}"
+            r = requests.get(url, timeout=30)
+            if r.status_code == 200:
+                with open(output, "wb") as f:
+                    f.write(r.content)
+                st.success(f"Downloaded {output} via fallback")
+            else:
+                raise Exception(f"HTTP {r.status_code}")
+        except Exception as e2:
+            st.error(f"❌ Could not download {output}")
+            st.error(f"gdown error: {e}")
+            st.error(f"Fallback error: {e2}")
+            raise
+
 
 missing = [f for f in FILES if not os.path.exists(f)]
 if missing:
     with st.spinner("Loading cinema engine…"):
         for filename in missing:
             download_file(FILES[filename], filename)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  LOAD — cached so pickle files are only read once per session
