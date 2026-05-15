@@ -83,67 +83,111 @@ section.main { background: #080810 !important; }
 """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DOWNLOAD — only if file doesn't already exist (fixes PermissionError)
+#  GOOGLE DRIVE DOWNLOAD — robust with virus-scan bypass
 # ══════════════════════════════════════════════════════════════════════════════
 
 FILES = {
-    "similarity.pkl": "1W1PX6EGqIVxNxUnlg8I54yx2PR9GFfaC",
-    "movies.pkl": "1hmal9e3tbE9kBFvYH4Q5pKFksi8e61rp",
+    "similarity.pkl":  "1W1PX6EGqIVxNxUnlg8I54yx2PR9GFfaC",
+    "movies.pkl":      "1hmal9e3tbE9kBFvYH4Q5pKFksi8e61rp",
     "movies_dict.pkl": "1p5IbvXBBtdakG9Sz1azeUT20E1SIzsyF",
 }
 
+def is_valid_pkl(path):
+    """Check that the file is binary pickle data, not an HTML error page."""
+    if not os.path.exists(path):
+        return False
+    with open(path, "rb") as f:
+        header = f.read(20)
+    # Pickle files start with specific bytes; HTML starts with <! or <html
+    return b"<html" not in header.lower() and b"<!do" not in header.lower()
 
 def download_file(file_id, output):
-    """Robust Google Drive download with fallback."""
-    if os.path.exists(output):
+    """Download from Google Drive. Handles virus-scan warnings for large files."""
+    if is_valid_pkl(output):
         return
 
+    # Delete any previous corrupt HTML file
+    if os.path.exists(output):
+        os.remove(output)
+
+    # ── Method 1: gdown ──
     try:
-        # ✅ Use id= parameter instead of full URL - much more reliable
-        gdown.download(id=file_id, output=output, quiet=False, fuzzy=True)
+        gdown.download(id=file_id, output=output, quiet=False)
+        if is_valid_pkl(output):
+            st.success(f"✅ Downloaded {output}")
+            return
+        else:
+            os.remove(output)
+            raise Exception("gdown returned HTML page")
     except Exception as e:
         st.warning(f"gdown failed for {output}: {e}")
-        # Fallback: try direct download via requests
-        try:
-            url = f"https://drive.google.com/uc?export=download&id={file_id}"
-            r = requests.get(url, timeout=30)
-            if r.status_code == 200:
-                with open(output, "wb") as f:
-                    f.write(r.content)
-                st.success(f"Downloaded {output} via fallback")
-            else:
-                raise Exception(f"HTTP {r.status_code}")
-        except Exception as e2:
-            st.error(f"❌ Could not download {output}")
-            st.error(f"gdown error: {e}")
-            st.error(f"Fallback error: {e2}")
-            raise
+
+    # ── Method 2: requests with Google Drive confirm token ──
+    try:
+        session = requests.Session()
+        url = "https://drive.google.com/uc?export=download"
+
+        response = session.get(url, params={"id": file_id}, stream=True)
+
+        # Large files trigger a virus-scan warning; grab the confirm cookie
+        for key, value in response.cookies.items():
+            if key.startswith("download_warning"):
+                response = session.get(url, params={"id": file_id, "confirm": value}, stream=True)
+                break
+
+        with open(output, "wb") as f:
+            for chunk in response.iter_content(chunk_size=32768):
+                if chunk:
+                    f.write(chunk)
+
+        if not is_valid_pkl(output):
+            os.remove(output)
+            raise Exception("Got HTML warning page instead of file")
+
+        st.success(f"✅ Downloaded {output} via requests")
+    except Exception as e2:
+        st.error(f"❌ Could not download {output}")
+        st.error(f"Error: {e2}")
+        st.info("💡 Google Drive quota may be exceeded. Try again later or host files on GitHub Releases.")
+        raise
 
 
-missing = [f for f in FILES if not os.path.exists(f)]
+missing = [f for f in FILES if not is_valid_pkl(f)]
 if missing:
     with st.spinner("Loading cinema engine…"):
         for filename in missing:
             download_file(FILES[filename], filename)
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  LOAD — cached so pickle files are only read once per session
 # ══════════════════════════════════════════════════════════════════════════════
 @st.cache_resource
 def load_data():
-    with open("similarity.pkl", "rb") as f: similarity  = pickle.load(f)
-    with open("movies.pkl",     "rb") as f: movies      = pickle.load(f)
-    with open("movies_dict.pkl","rb") as f: movies_dict = pickle.load(f)
+    with open("similarity.pkl", "rb") as f:  similarity  = pickle.load(f)
+    with open("movies.pkl",     "rb") as f:  movies      = pickle.load(f)
+    with open("movies_dict.pkl","rb") as f:  movies_dict = pickle.load(f)
     return similarity, movies, movies_dict
 
 similarity, movies, movies_dict = load_data()
-api_key = st.secrets["TMDB_API_KEY"]
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  TMDB API KEY — graceful fallback if secrets missing
+# ══════════════════════════════════════════════════════════════════════════════
+try:
+    api_key = st.secrets["TMDB_API_KEY"]
+except Exception:
+    api_key = None
+    st.warning("⚠️ TMDB_API_KEY not found in secrets. Movie posters/details won't load.")
+    st.info("Add it in Streamlit Cloud → Settings → Secrets, or create .streamlit/secrets.toml locally.")
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
 def fetch_movie_details_by_title(title):
+    if not api_key:
+        return ("https://via.placeholder.com/300x450/0f0f1e/666?text=No+API+Key",
+                "Add TMDB API key in secrets to see movie details.", 0.0, [])
+
     try:
         r = requests.get(
             f"https://api.themoviedb.org/3/search/movie?api_key={api_key}&query={title}",
@@ -223,7 +267,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  RESULTS — 100% inline styles on cards
+#  RESULTS
 # ══════════════════════════════════════════════════════════════════════════════
 if go:
     with st.spinner("Finding your perfect matches…"):
